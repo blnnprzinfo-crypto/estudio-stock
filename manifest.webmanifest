@@ -1,0 +1,19 @@
+{
+  "name": "Estudio Stock",
+  "short_name": "Stock",
+  "description": "Inventario movil y CRM ligero para estudio de tatuaje.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f8f6",
+  "theme_color": "#0f766e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
