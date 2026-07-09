@@ -72,7 +72,7 @@
     .tabs {
       height: 76px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       border-bottom: 1px solid var(--line);
     }
     .tab {
@@ -241,6 +241,10 @@
       <button class="tab active" data-mode="stock">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5h6M9 4a3 3 0 0 1 6 0M6 7h12v14H6zM9 11h6M9 15h4"/></svg>
         Stock
+      </button>
+      <button class="tab" data-mode="alerts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/></svg>
+        Alertas
       </button>
       <button class="tab" data-mode="buy">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6h15l-2 8H8zM6 6 5 3H2M9 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM18 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>
@@ -423,6 +427,35 @@
       }).join('') : '<div class="empty">Inventario limpio. Pulsa + para crear el primer material.</div>';
     }
 
+    function renderAlerts() {
+      const list = document.querySelector('#list');
+      const items = filteredItems().filter(item => Number(item.qty || 0) <= Number(item.min || 0));
+      document.querySelector('#tableHead').style.display = 'grid';
+      list.className = '';
+      list.innerHTML = items.length ? items.map(item => {
+        const checked = state.selected.includes(item.id) ? 'checked' : '';
+        const missing = missingQty(item);
+        return `
+          <article class="stock-row">
+            <input class="check" type="checkbox" ${checked} onchange="toggleSelected('${item.id}', this.checked)" aria-label="Seleccionar ${escapeHtml(displayName(item))}">
+            <div class="material">
+              <div class="emoji">${escapeHtml(item.emoji || '⚠️')}</div>
+              <div>
+                <div class="item-name">${escapeHtml(displayName(item))}</div>
+                <div class="item-sub">Faltan ${missing} ${escapeHtml(item.unit || 'und')} · minimo ${escapeHtml(item.min)}</div>
+              </div>
+            </div>
+            <div class="stock">${escapeHtml(item.qty)}</div>
+            <div class="min low">${escapeHtml(item.min)}</div>
+            <div class="stepper">
+              <button class="step" onclick="moveItem('${item.id}', -1)">-</button>
+              <button class="step" onclick="moveItem('${item.id}', 1)">+</button>
+            </div>
+          </article>
+        `;
+      }).join('') : '<div class="empty">Todo esta por encima del minimo.</div>';
+    }
+
     function renderBuy() {
       const list = document.querySelector('#list');
       const items = itemsToBuy().filter(item => filteredItems().includes(item));
@@ -491,6 +524,7 @@
       document.querySelector('#toolbar').classList.toggle('hidden', state.mode === 'moves');
       document.querySelector('#modeNote').textContent = {
         stock: 'Selecciona materiales para borrarlos o ajusta stock con + y -.',
+        alerts: 'Solo materiales en minimo o por debajo. Sube stock con + o revisa compra.',
         buy: 'Lista de compra segun minimo. Los precios se aprenden con tickets o los puedes escribir.',
         moves: 'Historial local de cambios.'
       }[state.mode];
@@ -501,6 +535,7 @@
       renderCategories();
       renderToolbar();
       if (state.mode === 'stock') renderStock();
+      if (state.mode === 'alerts') renderAlerts();
       if (state.mode === 'buy') renderBuy();
       if (state.mode === 'moves') renderMoves();
       renderSummary();
