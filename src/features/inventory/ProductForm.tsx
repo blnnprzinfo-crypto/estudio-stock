@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Button } from '../../components/Button.js';
 import { Field, SelectField, TextAreaField } from '../../components/Field.js';
 import { createProduct } from '../../db/products.js';
-import type { Category } from '../../types/index.js';
+import { safeExternalUrl } from '../purchase/links.js';
+import type { Category, Supplier } from '../../types/index.js';
 
 interface ProductFormProps {
   categories: Category[];
+  suppliers: Supplier[];
   onDone: () => void;
 }
 
@@ -17,11 +19,13 @@ interface ProductFormProps {
  * transacción. No es una edición de stock: una vez creado, la cantidad ya solo
  * se mueve con applyMovement.
  */
-export function ProductForm({ categories, onDone }: ProductFormProps) {
+export function ProductForm({ categories, suppliers, onDone }: ProductFormProps) {
   const [form, setForm] = useState({
     name: '',
     brand: '',
     categoryId: categories[0]?.id ?? '',
+    supplierId: '',
+    supplierUrl: '',
     format: '',
     qty: '0',
     minQty: '0',
@@ -48,7 +52,8 @@ export function ProductForm({ categories, onDone }: ProductFormProps) {
         name: form.name.trim(),
         brand: emptyToNull(form.brand),
         categoryId: form.categoryId,
-        supplierId: null,
+        supplierId: emptyToNull(form.supplierId),
+        supplierUrl: emptyToNull(form.supplierUrl),
         format: emptyToNull(form.format),
         qty: toNumber(form.qty),
         minQty: toNumber(form.minQty),
@@ -105,6 +110,29 @@ export function ProductForm({ categories, onDone }: ProductFormProps) {
             </option>
           ))}
         </SelectField>
+
+        <SelectField
+          label="Proveedor"
+          value={form.supplierId}
+          onChange={(event) => set('supplierId', event.target.value)}
+        >
+          <option value="">Sin proveedor</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>
+              {supplier.name}
+            </option>
+          ))}
+        </SelectField>
+
+        <Field
+          label="Enlace del proveedor"
+          type="url"
+          inputMode="url"
+          placeholder="https://..."
+          hint={supplierUrlHint(form.supplierUrl)}
+          value={form.supplierUrl}
+          onChange={(event) => set('supplierUrl', event.target.value)}
+        />
 
         <div className="grid grid-cols-2 gap-2">
           <Field
@@ -204,6 +232,16 @@ export function ProductForm({ categories, onDone }: ProductFormProps) {
 function emptyToNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed === '' ? null : trimmed;
+}
+
+/** Avisa en el momento si el enlace pegado no va a servir para abrir la ficha. */
+function supplierUrlHint(value: string): string | undefined {
+  if (value.trim() === '') {
+    return 'Pega aquí la ficha del producto en la tienda. Se guarda una vez y ya no hay que buscarlo más.';
+  }
+  return safeExternalUrl(value)
+    ? undefined
+    : 'Este enlace no vale. Tiene que empezar por http:// o https://';
 }
 
 function toNumber(value: string): number {

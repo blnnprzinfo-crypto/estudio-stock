@@ -4,19 +4,22 @@ import { InventoryList } from './features/inventory/InventoryList.js';
 import { ProductDetail } from './features/inventory/ProductDetail.js';
 import { ProductForm } from './features/inventory/ProductForm.js';
 import { BulkEntry } from './features/inventory/BulkEntry.js';
+import { PurchaseList } from './features/purchase/PurchaseList.js';
 import { EmptyState } from './components/EmptyState.js';
 import type { ID } from './types/index.js';
 
-type Tab = 'inventario' | 'nuevo' | 'rapida';
+type Tab = 'inventario' | 'compra' | 'nuevo' | 'rapida';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'inventario', label: 'Inventario' },
+  { key: 'compra', label: 'Compra' },
   { key: 'nuevo', label: 'Nuevo' },
   { key: 'rapida', label: 'Alta rápida' },
 ];
 
 const TITLES: Record<Tab, string> = {
   inventario: 'Inventario',
+  compra: 'Compra',
   nuevo: 'Nuevo producto',
   rapida: 'Alta rápida',
 };
@@ -26,7 +29,8 @@ const TITLES: Record<Tab, string> = {
  * librería de rutas no aportaría nada y sí una dependencia más.
  */
 export default function App() {
-  const { products, categories, categoryNames, loading, error, reload } = useProducts();
+  const { products, categories, suppliers, categoryNames, loading, error, reload } =
+    useProducts();
   const [tab, setTab] = useState<Tab>('inventario');
   const [selectedId, setSelectedId] = useState<ID | null>(null);
 
@@ -78,7 +82,7 @@ export default function App() {
       </header>
 
       {!showingDetail ? (
-        <nav className="grid grid-cols-3 px-4 pt-3" aria-label="Secciones">
+        <nav className="grid grid-cols-4 px-4 pt-3" aria-label="Secciones">
           {TABS.map(({ key, label }) => (
             <button
               key={key}
@@ -107,6 +111,7 @@ export default function App() {
             key={selected.id}
             product={selected}
             categories={categories}
+            suppliers={suppliers}
             onDone={() => void closeDetail()}
           />
         ) : tab === 'inventario' ? (
@@ -116,8 +121,18 @@ export default function App() {
             categoryNames={categoryNames}
             onSelect={openDetail}
           />
+        ) : tab === 'compra' ? (
+          <PurchaseList
+            products={products}
+            suppliers={suppliers}
+            onSelect={openDetail}
+          />
         ) : tab === 'nuevo' ? (
-          <ProductForm categories={categories} onDone={() => void afterCreate()} />
+          <ProductForm
+            categories={categories}
+            suppliers={suppliers}
+            onDone={() => void afterCreate()}
+          />
         ) : (
           <BulkEntry categories={categories} onDone={() => void afterBulk()} />
         )}

@@ -2,7 +2,7 @@ import { db } from './db.js';
 import { buildInitialMovement } from './movements.js';
 import { generateId, now } from '../lib/ids.js';
 import { getDeviceId } from '../lib/device.js';
-import type { ID, Product, NewProduct } from '../types/index.js';
+import type { ID, Product, NewProductInput } from '../types/index.js';
 
 /**
  * Fields updateProduct may change.
@@ -18,15 +18,14 @@ export type ProductUpdate = Partial<
 /**
  * Create a single product.
  */
-export async function createProduct(
-  input: Omit<NewProduct, 'deviceId'>
-): Promise<Product> {
+export async function createProduct(input: NewProductInput): Promise<Product> {
   return db.transaction('rw', db.products, db.movements, async () => {
     const timestamp = now();
     const deviceId = getDeviceId();
     const product: Product = {
       id: generateId(),
       ...input,
+      supplierUrl: input.supplierUrl ?? null,
       createdAt: timestamp,
       updatedAt: timestamp,
       deletedAt: null,
@@ -48,7 +47,7 @@ export async function createProduct(
  * Create multiple products in a single transaction, each with an 'inicial' movement.
  */
 export async function createProductsBulk(
-  products: Omit<NewProduct, 'deviceId'>[]
+  products: NewProductInput[]
 ): Promise<Product[]> {
   return db.transaction('rw', db.products, db.movements, async () => {
     const timestamp = now();
@@ -57,6 +56,7 @@ export async function createProductsBulk(
     const dbProducts: Product[] = products.map((input) => ({
       id: generateId(),
       ...input,
+      supplierUrl: input.supplierUrl ?? null,
       createdAt: timestamp,
       updatedAt: timestamp,
       deletedAt: null,
@@ -243,6 +243,7 @@ export async function duplicateProduct(
     expiresAt: original.expiresAt,
     location: original.location,
     notes: original.notes,
+    supplierUrl: original.supplierUrl,
   });
 
   return newProduct;

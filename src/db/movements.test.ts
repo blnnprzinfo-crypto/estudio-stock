@@ -14,7 +14,7 @@ import {
 } from './products.js';
 import { seedCategories } from './seed.js';
 import { getDeviceId } from '../lib/device.js';
-import type { NewProduct } from '../types/index.js';
+import type { NewProductInput } from '../types/index.js';
 
 describe('Data Layer — Movements & Atomicity', () => {
   beforeEach(async () => {
@@ -400,7 +400,7 @@ describe('Data Layer — Movements & Atomicity', () => {
   describe('bulk creation', () => {
     it('should create 150+ products quickly with initial movements', async () => {
       const categories = await db.categories.toArray();
-      const products: Omit<NewProduct, 'deviceId'>[] = Array.from(
+      const products: NewProductInput[] = Array.from(
         { length: 150 },
         (_, i) => ({
           name: `Product ${i + 1}`,

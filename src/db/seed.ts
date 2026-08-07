@@ -1,6 +1,6 @@
 import { db } from './db.js';
 import { generateId, now } from '../lib/ids.js';
-import type { Category } from '../types/index.js';
+import type { Category, Supplier } from '../types/index.js';
 
 const INITIAL_CATEGORIES = [
   { name: 'Agujas', emoji: '🧵' },
@@ -46,5 +46,39 @@ export async function seedCategories(): Promise<void> {
     }));
 
     await db.categories.bulkAdd(categories);
+  });
+}
+
+const INITIAL_SUPPLIERS = [
+  {
+    name: 'AtomX Supply',
+    website: 'https://www.atomxsupply.com',
+    // La app nunca consulta esta web: solo abre la búsqueda en el navegador
+    // de la usuaria, con su sesión. No hay peticiones desde aquí.
+    searchUrlTemplate:
+      'https://www.atomxsupply.com/en/search?controller=search&s={query}',
+    notes: null,
+  },
+];
+
+/**
+ * Crea los proveedores conocidos la primera vez. Misma protección que las
+ * categorías: contar y escribir dentro de la misma transacción.
+ */
+export async function seedSuppliers(): Promise<void> {
+  await db.transaction('rw', db.suppliers, async () => {
+    const existingCount = await db.suppliers.count();
+    if (existingCount > 0) return;
+
+    const timestamp = now();
+    const suppliers: Supplier[] = INITIAL_SUPPLIERS.map((supplier) => ({
+      id: generateId(),
+      ...supplier,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      deletedAt: null,
+    }));
+
+    await db.suppliers.bulkAdd(suppliers);
   });
 }

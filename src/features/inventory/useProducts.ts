@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getAllProducts } from '../../db/products.js';
 import { getAllCategories } from '../../db/categories.js';
-import { seedCategories } from '../../db/seed.js';
-import type { Category, ID, Product } from '../../types/index.js';
+import { getAllSuppliers } from '../../db/suppliers.js';
+import { seedCategories, seedSuppliers } from '../../db/seed.js';
+import type { Category, ID, Product, Supplier } from '../../types/index.js';
 
 interface UseProductsResult {
   products: Product[];
   categories: Category[];
+  suppliers: Supplier[];
   categoryNames: Map<ID, string>;
   loading: boolean;
   error: string | null;
@@ -22,16 +24,19 @@ interface UseProductsResult {
 export function useProducts(): UseProductsResult {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [nextProducts, nextCategories] = await Promise.all([
+    const [nextProducts, nextCategories, nextSuppliers] = await Promise.all([
       getAllProducts(),
       getAllCategories(),
+      getAllSuppliers(),
     ]);
     setProducts(nextProducts);
     setCategories(nextCategories);
+    setSuppliers(nextSuppliers);
   }, []);
 
   useEffect(() => {
@@ -40,13 +45,16 @@ export function useProducts(): UseProductsResult {
     (async () => {
       try {
         await seedCategories();
-        const [nextProducts, nextCategories] = await Promise.all([
+        await seedSuppliers();
+        const [nextProducts, nextCategories, nextSuppliers] = await Promise.all([
           getAllProducts(),
           getAllCategories(),
+          getAllSuppliers(),
         ]);
         if (cancelled) return;
         setProducts(nextProducts);
         setCategories(nextCategories);
+        setSuppliers(nextSuppliers);
       } catch (cause) {
         if (cancelled) return;
         setError(
@@ -69,5 +77,5 @@ export function useProducts(): UseProductsResult {
     [categories]
   );
 
-  return { products, categories, categoryNames, loading, error, reload };
+  return { products, categories, suppliers, categoryNames, loading, error, reload };
 }

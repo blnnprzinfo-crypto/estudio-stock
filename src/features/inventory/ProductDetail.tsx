@@ -7,11 +7,13 @@ import {
   softDeleteProduct,
   updateProduct,
 } from '../../db/products.js';
-import type { Category, Product } from '../../types/index.js';
+import { safeExternalUrl } from '../purchase/links.js';
+import type { Category, Product, Supplier } from '../../types/index.js';
 
 interface ProductDetailProps {
   product: Product;
   categories: Category[];
+  suppliers: Supplier[];
   onDone: () => void;
 }
 
@@ -21,11 +23,18 @@ interface ProductDetailProps {
  * La cantidad se muestra pero NO se edita: no hay ningún campo enlazado a qty
  * y updateProduct ni siquiera la acepta. El stock se mueve en la Fase 3.
  */
-export function ProductDetail({ product, categories, onDone }: ProductDetailProps) {
+export function ProductDetail({
+  product,
+  categories,
+  suppliers,
+  onDone,
+}: ProductDetailProps) {
   const [form, setForm] = useState({
     name: product.name,
     brand: product.brand ?? '',
     categoryId: product.categoryId,
+    supplierId: product.supplierId ?? '',
+    supplierUrl: product.supplierUrl ?? '',
     format: product.format ?? '',
     minQty: String(product.minQty),
     unit: product.unit,
@@ -62,6 +71,8 @@ export function ProductDetail({ product, categories, onDone }: ProductDetailProp
         name: form.name.trim(),
         brand: emptyToNull(form.brand),
         categoryId: form.categoryId,
+        supplierId: emptyToNull(form.supplierId),
+        supplierUrl: emptyToNull(form.supplierUrl),
         format: emptyToNull(form.format),
         minQty: toNumber(form.minQty),
         unit: form.unit.trim() || 'ud',
@@ -118,6 +129,29 @@ export function ProductDetail({ product, categories, onDone }: ProductDetailProp
             </option>
           ))}
         </SelectField>
+
+        <SelectField
+          label="Proveedor"
+          value={form.supplierId}
+          onChange={(event) => set('supplierId', event.target.value)}
+        >
+          <option value="">Sin proveedor</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>
+              {supplier.name}
+            </option>
+          ))}
+        </SelectField>
+
+        <Field
+          label="Enlace del proveedor"
+          type="url"
+          inputMode="url"
+          placeholder="https://..."
+          hint={supplierUrlHint(form.supplierUrl)}
+          value={form.supplierUrl}
+          onChange={(event) => set('supplierUrl', event.target.value)}
+        />
 
         <div className="grid grid-cols-2 gap-2">
           <Field
@@ -239,6 +273,16 @@ export function ProductDetail({ product, categories, onDone }: ProductDetailProp
 function emptyToNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed === '' ? null : trimmed;
+}
+
+/** Avisa en el momento si el enlace pegado no va a servir para abrir la ficha. */
+function supplierUrlHint(value: string): string | undefined {
+  if (value.trim() === '') {
+    return 'Pega aquí la ficha del producto en la tienda. La lista de compra la abrirá directamente.';
+  }
+  return safeExternalUrl(value)
+    ? undefined
+    : 'Este enlace no vale. Tiene que empezar por http:// o https://';
 }
 
 function toNumber(value: string): number {

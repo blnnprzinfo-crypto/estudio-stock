@@ -113,6 +113,9 @@ export function BulkEntry({ categories, onDone }: BulkEntryProps) {
           expiresAt: null,
           location: null,
           notes: null,
+          // El enlace del proveedor se pega desde el detalle, una vez por
+          // producto: en la carga inicial solo estorbaría.
+          supplierUrl: null,
         }))
       );
       setSaved(filled.length);
