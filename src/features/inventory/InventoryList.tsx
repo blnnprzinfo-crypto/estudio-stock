@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { ProductRow } from './ProductRow.js';
+import { useStockStepper } from './useStockStepper.js';
 import { EmptyState } from '../../components/EmptyState.js';
 import type { Category, ID, Product } from '../../types/index.js';
 
@@ -19,6 +20,8 @@ interface InventoryListProps {
   categories: Category[];
   categoryNames: Map<ID, string>;
   onSelect: (id: ID) => void;
+  /** Recarga tras escribir un ajuste de stock. */
+  onReload: () => Promise<void>;
 }
 
 export function InventoryList({
@@ -26,6 +29,7 @@ export function InventoryList({
   categories,
   categoryNames,
   onSelect,
+  onReload,
 }: InventoryListProps) {
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState<ID | 'todas'>('todas');
@@ -63,6 +67,10 @@ export function InventoryList({
   // Estable entre pulsaciones para que memo de ProductRow no se desactive.
   const handleSelect = useCallback((id: ID) => onSelect(id), [onSelect]);
 
+  const { pending, error, adjust, dismissError } = useStockStepper({
+    onCommitted: onReload,
+  });
+
   // Las opciones solo dependen de las categorías. El desplegable no se
   // reconstruye al escribir en el buscador, que era el fallo del prototipo.
   const categoryOptions = useMemo(
@@ -75,9 +83,15 @@ export function InventoryList({
     [categories]
   );
 
+  // Cuenta sobre lo que se ve, ajustes sin escribir incluidos: si no, el
+  // resumen contradiría los números que hay justo encima.
   const lowCount = useMemo(
-    () => visible.filter((product) => product.qty <= product.minQty).length,
-    [visible]
+    () =>
+      visible.filter(
+        (product) =>
+          product.qty + (pending.get(product.id) ?? 0) <= product.minQty
+      ).length,
+    [visible, pending]
   );
 
   const isFiltering = query.trim() !== '' || categoryId !== 'todas';
@@ -141,11 +155,24 @@ export function InventoryList({
               key={product.id}
               product={product}
               categoryName={categoryNames.get(product.categoryId) ?? 'Sin categoría'}
+              pendingDelta={pending.get(product.id) ?? 0}
+              onAdjust={adjust}
               onSelect={handleSelect}
             />
           ))
         )}
       </div>
+
+      {error ? (
+        <button
+          type="button"
+          onClick={dismissError}
+          role="alert"
+          className="min-h-[44px] border-t border-danger bg-danger/10 px-4 py-2 text-left text-[13px] font-semibold text-danger"
+        >
+          {error}
+        </button>
+      ) : null}
 
       <div className="flex items-center justify-between border-t border-line bg-soft px-4 py-3 text-[13px] font-semibold text-muted">
         <span>

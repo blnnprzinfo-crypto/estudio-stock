@@ -120,6 +120,7 @@ export default function App() {
             categories={categories}
             categoryNames={categoryNames}
             onSelect={openDetail}
+            onReload={reload}
           />
         ) : tab === 'compra' ? (
           <PurchaseList
