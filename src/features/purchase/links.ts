@@ -88,3 +88,17 @@ export function resolvePurchaseAction(
 export function missingToMinimum(product: Product): number {
   return Math.max(0, product.minQty - product.qty);
 }
+
+/**
+ * Unidades que se proponen pedir de un producto.
+ *
+ * Lo que falta para volver al mínimo, redondeado hacia arriba porque no se
+ * compran fracciones de caja, y nunca menos de una: un producto justo en el
+ * mínimo sale con 0 de diferencia pero igual hay que reponerlo.
+ *
+ * Esto NO es el stock. Es cuántas unidades meter en el pedido, vive solo
+ * mientras la pantalla está abierta y no se guarda en el producto.
+ */
+export function defaultOrderQty(product: Product): number {
+  return Math.max(1, Math.ceil(missingToMinimum(product)));
+}

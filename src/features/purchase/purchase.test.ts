@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildSearchUrl,
+  defaultOrderQty,
   missingToMinimum,
   resolvePurchaseAction,
   safeExternalUrl,
@@ -147,6 +148,22 @@ describe('missingToMinimum', () => {
   });
 });
 
+describe('defaultOrderQty', () => {
+  it('propone lo que falta para volver al minimo', () => {
+    expect(defaultOrderQty(product({ qty: 2, minQty: 5 }))).toBe(3);
+  });
+
+  it('propone al menos una unidad cuando esta justo en el minimo', () => {
+    // Falta 0, pero sigue habiendo que reponerlo
+    expect(defaultOrderQty(product({ qty: 5, minQty: 5 }))).toBe(1);
+  });
+
+  it('redondea hacia arriba: no se compran fracciones', () => {
+    expect(defaultOrderQty(product({ qty: 0.5, minQty: 3 }))).toBe(3);
+    expect(defaultOrderQty(product({ qty: 1.2, minQty: 2 }))).toBe(1);
+  });
+});
+
 describe('groupForPurchase', () => {
   it('agrupa por proveedor y deja los sueltos al final', () => {
     const atomx = supplier();
@@ -200,6 +217,32 @@ describe('formatShoppingList', () => {
         '- Tinta negra (Dynamic 1 L): 2 ud',
       ].join('\n')
     );
+  });
+
+  it('usa las unidades ajustadas con el selector', () => {
+    const groups = groupForPurchase(
+      [product({ id: 'p1', name: 'Cartuchos 1203RL', qty: 2, minQty: 5 })],
+      [supplier()]
+    );
+
+    // Por defecto propondria 3; aqui se han subido a 10 con el selector
+    const text = formatShoppingList(groups, new Map([['p1', 10]]));
+    expect(text).toContain(': 10 ud');
+    expect(text).not.toContain(': 3 ud');
+  });
+
+  it('los que no se han tocado salen con la cantidad propuesta', () => {
+    const groups = groupForPurchase(
+      [
+        product({ id: 'p1', name: 'Tocado', qty: 2, minQty: 5 }),
+        product({ id: 'p2', name: 'Sin tocar', qty: 1, minQty: 4 }),
+      ],
+      [supplier()]
+    );
+
+    const text = formatShoppingList(groups, new Map([['p1', 10]]));
+    expect(text).toContain('- Tocado (Kwadron caja de 20): 10 ud');
+    expect(text).toContain('- Sin tocar (Kwadron caja de 20): 3 ud');
   });
 
   it('no deja el mensaje vacio cuando no hay nada', () => {

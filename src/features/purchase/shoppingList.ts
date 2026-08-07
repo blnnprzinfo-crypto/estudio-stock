@@ -1,5 +1,5 @@
-import { missingToMinimum } from './links.js';
-import type { Product, Supplier } from '../../types/index.js';
+import { defaultOrderQty } from './links.js';
+import type { ID, Product, Supplier } from '../../types/index.js';
 
 export interface PurchaseGroup {
   supplier: Supplier | null;
@@ -54,8 +54,14 @@ export function groupForPurchase(
 /**
  * Texto plano de la lista, para pegar en un mensaje al proveedor.
  * Sin markdown ni adornos: se lee igual en WhatsApp que en un correo.
+ *
+ * quantities lleva las unidades ajustadas a mano con el selector. Lo que no
+ * esté ahí sale con la cantidad propuesta por defecto.
  */
-export function formatShoppingList(groups: PurchaseGroup[]): string {
+export function formatShoppingList(
+  groups: PurchaseGroup[],
+  quantities: Map<ID, number> = new Map()
+): string {
   if (groups.length === 0) {
     return 'No hay nada que reponer.';
   }
@@ -63,11 +69,10 @@ export function formatShoppingList(groups: PurchaseGroup[]): string {
   return groups
     .map((group) => {
       const lines = group.products.map((product) => {
-        const missing = missingToMinimum(product);
-        const amount = formatNumber(missing === 0 ? product.minQty : missing);
+        const amount = quantities.get(product.id) ?? defaultOrderQty(product);
         const detail = [product.brand, product.format].filter(Boolean).join(' ');
         const name = detail ? `${product.name} (${detail})` : product.name;
-        return `- ${name}: ${amount} ${product.unit}`;
+        return `- ${name}: ${formatNumber(amount)} ${product.unit}`;
       });
 
       return [`${group.title}:`, ...lines].join('\n');

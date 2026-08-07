@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Button } from '../../components/Button.js';
 import { EmptyState } from '../../components/EmptyState.js';
+import { QuantityStepper } from '../../components/QuantityStepper.js';
 import { groupForPurchase, formatShoppingList } from './shoppingList.js';
-import { missingToMinimum, resolvePurchaseAction } from './links.js';
-import type { Product, Supplier } from '../../types/index.js';
+import { defaultOrderQty, missingToMinimum, resolvePurchaseAction } from './links.js';
+import type { ID, Product, Supplier } from '../../types/index.js';
 
 interface PurchaseListProps {
   products: Product[];
@@ -22,6 +23,15 @@ export function PurchaseList({ products, suppliers, onSelect }: PurchaseListProp
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
 
+  // Unidades a pedir, ajustadas a mano. Solo lo que se toca entra aquí; el
+  // resto usa la cantidad propuesta. No se guarda en la base: es el pedido de
+  // este rato, no un dato del producto.
+  const [orderQty, setOrderQty] = useState<Map<ID, number>>(new Map());
+
+  const setQty = useCallback((productId: ID, value: number) => {
+    setOrderQty((current) => new Map(current).set(productId, value));
+  }, []);
+
   // Misma condición que getLowStockProducts: estar en el mínimo ya cuenta.
   const groups = useMemo(() => {
     const low = products.filter((product) => product.qty <= product.minQty);
@@ -36,7 +46,7 @@ export function PurchaseList({ products, suppliers, onSelect }: PurchaseListProp
   const copy = async () => {
     setCopyError(null);
     try {
-      await navigator.clipboard.writeText(formatShoppingList(groups));
+      await navigator.clipboard.writeText(formatShoppingList(groups, orderQty));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -81,6 +91,8 @@ export function PurchaseList({ products, suppliers, onSelect }: PurchaseListProp
               key={product.id}
               product={product}
               supplier={group.supplier}
+              qty={orderQty.get(product.id) ?? defaultOrderQty(product)}
+              onQtyChange={setQty}
               onSelect={onSelect}
             />
           ))}
@@ -93,10 +105,18 @@ export function PurchaseList({ products, suppliers, onSelect }: PurchaseListProp
 interface PurchaseRowProps {
   product: Product;
   supplier: Supplier | null;
+  qty: number;
+  onQtyChange: (productId: ID, value: number) => void;
   onSelect: (id: string) => void;
 }
 
-function PurchaseRow({ product, supplier, onSelect }: PurchaseRowProps) {
+function PurchaseRow({
+  product,
+  supplier,
+  qty,
+  onQtyChange,
+  onSelect,
+}: PurchaseRowProps) {
   const action = resolvePurchaseAction(product, supplier);
   const missing = missingToMinimum(product);
 
@@ -107,11 +127,11 @@ function PurchaseRow({ product, supplier, onSelect }: PurchaseRowProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+    <div className="grid gap-2 border-b border-line px-4 py-3">
       <button
         type="button"
         onClick={() => onSelect(product.id)}
-        className="flex min-h-[44px] min-w-0 flex-1 items-center gap-3 text-left"
+        className="flex min-h-[44px] w-full min-w-0 items-center gap-3 text-left"
       >
         <span aria-hidden className="grid w-8 shrink-0 place-items-center text-xl">
           {product.emoji}
@@ -129,22 +149,36 @@ function PurchaseRow({ product, supplier, onSelect }: PurchaseRowProps) {
         </span>
       </button>
 
-      {action.kind === 'sin-enlace' ? (
-        <span
-          title={action.reason}
-          className="grid min-h-[44px] shrink-0 place-items-center rounded-lg border border-line px-3 text-[13px] font-semibold text-muted"
-        >
-          {action.label}
+      <div className="flex items-center gap-2 pl-11">
+        <QuantityStepper
+          value={qty}
+          unit={product.unit}
+          label={product.name}
+          onChange={(value) => onQtyChange(product.id, value)}
+        />
+        <span className="text-[13px] font-semibold text-muted">
+          {product.unit} a pedir
         </span>
-      ) : (
-        <Button
-          variant={action.kind === 'ficha' ? 'primary' : 'secondary'}
-          className="shrink-0 px-3 text-[13px]"
-          onClick={() => open(action.url)}
-        >
-          {action.kind === 'ficha' ? 'Abrir' : 'Buscar'}
-        </Button>
-      )}
+
+        <span className="ml-auto">
+          {action.kind === 'sin-enlace' ? (
+            <span
+              title={action.reason}
+              className="grid min-h-[44px] shrink-0 place-items-center rounded-lg border border-line px-3 text-[13px] font-semibold text-muted"
+            >
+              {action.label}
+            </span>
+          ) : (
+            <Button
+              variant={action.kind === 'ficha' ? 'primary' : 'secondary'}
+              className="shrink-0 px-3 text-[13px]"
+              onClick={() => open(action.url)}
+            >
+              {action.kind === 'ficha' ? 'Abrir' : 'Buscar'}
+            </Button>
+          )}
+        </span>
+      </div>
     </div>
   );
 }
