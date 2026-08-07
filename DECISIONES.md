@@ -28,7 +28,7 @@ Este documento manda. Cualquier propuesta técnica tiene que pasar estos filtros
 | Estilos | Tailwind CSS | Consistencia visual sin acumular CSS muerto |
 | Datos locales | IndexedDB | Respuesta instantánea, funciona sin cobertura |
 | Datos remotos | Cloudflare D1 + Workers | Gratis, uso comercial permitido, sin pausas por inactividad |
-| Alojamiento | Cloudflare Pages | Gratis sin caducidad, uso comercial permitido, ancho de banda ilimitado |
+| Alojamiento | Cloudflare Workers con assets estáticos | Gratis sin caducidad, uso comercial permitido, ancho de banda ilimitado. Desplegado en `estudio-stock.blnnp.workers.dev` |
 | Estrategia de datos | Local-first con sincronización en segundo plano | Une "instantáneo" con "no perder datos nunca" |
 
 ### Alternativas descartadas
@@ -40,6 +40,8 @@ Este documento manda. Cualquier propuesta técnica tiene que pasar estos filtros
 - **Motor de sincronización local-first completo** — descartado por complejidad. Con una sola usuaria basta con: registro de movimientos que solo crece (sin conflictos por naturaleza) y "gana la edición más reciente" para los productos.
 
 ## Notas técnicas a tener presentes
+
+- **El despliegue es un Worker, no Pages.** Ventaja para la Fase 4: el mismo Worker que sirve la aplicación puede exponer la API y enlazar con D1, sin necesidad de un segundo servicio.
 
 - **Safari en iPhone borra el almacenamiento local tras 7 días sin uso** si la app no está instalada en la pantalla de inicio. La instalación es obligatoria, no opcional. La sincronización sirve además de red de seguridad si ocurriera.
 - **El código no va en OneDrive.** La copia de seguridad del código es GitHub. OneDrive sincronizando un repositorio solo añade riesgo de corrupción.
