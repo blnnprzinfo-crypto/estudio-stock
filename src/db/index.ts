@@ -2,7 +2,7 @@ export { db } from './db.js';
 export { seedCategories } from './seed.js';
 
 // Movements
-export { applyMovement, recalculateQty, getMovements, getMovementCount, getMovementsPaginated, getMovementsByReason } from './movements.js';
+export { applyMovement, recalculateQty, getMovements, getMovementCount, getMovementsPaginated, getMovementsByReason, buildInitialMovement } from './movements.js';
 export type { ApplyMovementInput } from './movements.js';
 
 // Products
@@ -22,6 +22,7 @@ export {
   getLowStockProducts,
   getExpiredProducts,
 } from './products.js';
+export type { ProductUpdate } from './products.js';
 
 // Categories
 export {

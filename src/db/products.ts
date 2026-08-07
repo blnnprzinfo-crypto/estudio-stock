@@ -1,7 +1,19 @@
 import { db } from './db.js';
+import { buildInitialMovement } from './movements.js';
 import { generateId, now } from '../lib/ids.js';
 import { getDeviceId } from '../lib/device.js';
 import type { ID, Product, NewProduct } from '../types/index.js';
+
+/**
+ * Fields updateProduct may change.
+ *
+ * qty is excluded on purpose: stock only moves through applyMovement(), which
+ * writes the new total and its movement in one transaction. Allowing qty here
+ * would let a caller change the stock without leaving a trace in the history.
+ */
+export type ProductUpdate = Partial<
+  Omit<Product, 'id' | 'qty' | 'createdAt' | 'deletedAt' | 'deviceId'>
+>;
 
 /**
  * Create a single product.
@@ -22,18 +34,11 @@ export async function createProduct(
     };
 
     await db.products.add(product);
-    await db.movements.add({
-      id: generateId(),
-      productId: product.id,
-      delta: product.qty,
-      reason: 'inicial',
-      qtyAfter: product.qty,
-      unitCost: product.unitCost,
-      note: null,
-      createdAt: timestamp,
-      userId: null,
-      deviceId,
-    });
+
+    const initial = buildInitialMovement(product, deviceId, timestamp);
+    if (initial) {
+      await db.movements.add(initial);
+    }
 
     return product;
   });
@@ -60,18 +65,9 @@ export async function createProductsBulk(
 
     await db.products.bulkAdd(dbProducts);
 
-    const movements = dbProducts.map((product) => ({
-      id: generateId(),
-      productId: product.id,
-      delta: product.qty,
-      reason: 'inicial' as const,
-      qtyAfter: product.qty,
-      unitCost: product.unitCost,
-      note: null,
-      createdAt: timestamp,
-      userId: null,
-      deviceId,
-    }));
+    const movements = dbProducts
+      .map((product) => buildInitialMovement(product, deviceId, timestamp))
+      .filter((movement) => movement !== null);
 
     await db.movements.bulkAdd(movements);
 
@@ -154,12 +150,23 @@ export async function getProductByBarcode(
 }
 
 /**
- * Update a product. Does NOT update qty directly (use applyMovement for that).
+ * Update a product's editable fields.
+ *
+ * Cannot change qty: the type excludes it and the runtime check below rejects
+ * it too, because a caller in plain JavaScript, or one silencing the type
+ * error, would otherwise bypass applyMovement() and leave the stock and its
+ * history disagreeing. Use applyMovement() to move stock.
  */
 export async function updateProduct(
   id: ID,
-  updates: Partial<Omit<Product, 'id' | 'createdAt' | 'deletedAt' | 'deviceId'>>
+  updates: ProductUpdate
 ): Promise<Product> {
+  if ('qty' in updates) {
+    throw new Error(
+      'updateProduct cannot change qty. Stock only moves through applyMovement(), which records the change in the movement history.'
+    );
+  }
+
   const product = await getProduct(id);
   if (!product) {
     throw new Error(`Product not found: ${id}`);
@@ -242,11 +249,12 @@ export async function duplicateProduct(
 }
 
 /**
- * Get products below minimum stock.
+ * Get products at or below minimum stock. Hitting the minimum already counts
+ * as low: the minimum is the reorder point, not the panic threshold.
  */
 export async function getLowStockProducts(): Promise<Product[]> {
   const all = await getAllProducts();
-  return all.filter((p) => p.qty < p.minQty);
+  return all.filter((p) => p.qty <= p.minQty);
 }
 
 /**
